@@ -2,54 +2,71 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
     <title>Chess Arena - GM Le Quang Liem</title>
     <link rel="icon" href="data:,">
     <style>
         :root {
-            --cell-size: 60px;
+            /* Kích thước linh hoạt: Tối đa 55px trên PC, tự co giãn theo màn hình nhỏ trên Mobile */
+            --cell-size: min(55px, 11vw); 
             --light-bg: #f0d9b5;
             --dark-bg: #b58863;
         }
         body {
-            margin: 0; padding: 20px; background: #1a1a1a; color: #e0e0e0;
-            font-family: 'Courier New', Courier, monospace;
+            margin: 0; padding: 10px; background: #1a1a1a; color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex; flex-direction: column; align-items: center;
-            min-height: 100vh; position: relative; box-sizing: border-box;
-            padding-bottom: 60px;
+            min-height: 100vh; box-sizing: border-box;
+            padding-bottom: 50px;
         }
         
+        /* Tiêu đề thích ứng chữ to trên PC, vừa vặn trên điện thoại */
         .main-headline {
-            font-size: 26px; font-weight: 900; color: #ffae00;
-            text-transform: uppercase; letter-spacing: 2px;
-            margin-bottom: 25px; text-align: center;
+            font-size: clamp(16px, 4.5vw, 24px); 
+            font-weight: 900; color: #ffae00;
+            text-transform: uppercase; letter-spacing: 1px;
+            margin: 10px 0 15px 0; text-align: center;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+            padding: 0 10px;
         }
 
-        .controls { margin-bottom: 25px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        .controls { margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
         button, select {
             background: #333; color: #fff; border: 1px solid #555;
-            padding: 8px 15px; cursor: pointer; font-family: monospace; font-size: 14px;
+            padding: 6px 12px; cursor: pointer; font-family: monospace; font-size: 13px;
+            border-radius: 4px;
         }
         button:hover:not(:disabled), select:not(:disabled) { background: #444; }
         button:disabled, select:disabled { opacity: 0.5; cursor: not-allowed; }
         
-        .main-container { display: flex; gap: 25px; flex-wrap: wrap; justify-content: center; }
-        .board-wrapper { display: flex; flex-direction: column; align-items: center; }
+        /* Layout linh hoạt: Trên PC xếp hàng ngang, trên Mobile tự động xếp hàng dọc */
+        .main-container { 
+            display: flex; gap: 20px; flex-direction: row; 
+            flex-wrap: wrap; justify-content: center; width: 100%; max-width: 1000px;
+        }
         
-        .board-header { font-size: 16px; font-weight: bold; color: #aaa; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; text-align: center; min-height: 20px;}
-        .board-footer { font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; align-items: center; gap: 15px; }
+        }
 
+        .board-wrapper { display: flex; flex-direction: column; align-items: center; }
+        .board-header { font-size: 14px; font-weight: bold; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; text-align: center; min-height: 18px;}
+        .board-footer { font-size: 11px; color: #666; margin-top: 8px; font-style: italic; }
+
+        /* Bàn cờ co giãn */
         .board {
             display: grid; grid-template-columns: repeat(8, var(--cell-size));
             grid-template-rows: repeat(8, var(--cell-size));
             border: 3px solid #444; user-select: none; position: relative; background: #252525;
+            box-shadow: 0px 8px 24px rgba(0,0,0,0.5);
         }
         
         .board.engine-busy { pointer-events: none; }
         .cell {
             width: var(--cell-size); height: var(--cell-size);
-            display: flex; align-items: center; justify-content: center; font-size: 40px; cursor: pointer; position: relative;
+            display: flex; align-items: center; justify-content: center; 
+            font-size: calc(var(--cell-size) * 0.65); /* Quân cờ tự co giãn theo ô */
+            cursor: pointer; position: relative;
         }
         .light { background: var(--light-bg); }
         .dark { background: var(--dark-bg); }
@@ -60,35 +77,48 @@
         .cell.hint-move { border: 3px solid #00ffff !important; box-sizing: border-box; animation: pulse-hint 1s infinite; }
 
         .cell.legal-target::after {
-            content: ''; width: 16px; height: 16px; background: rgba(0, 0, 0, 0.2); border-radius: 50%; position: absolute; z-index: 2; pointer-events: none;
+            content: ''; width: calc(var(--cell-size) * 0.28); height: calc(var(--cell-size) * 0.28); 
+            background: rgba(0, 0, 0, 0.2); border-radius: 50%; position: absolute; z-index: 2; pointer-events: none;
         }
         
         .piece { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 1; }
-        .piece.w { color: #ffffff; filter: drop-shadow(0px 0px 2px #000); }
+        .piece.w { color: #ffffff; filter: drop-shadow(0px 1px 2px #000); }
         .piece.b { color: #000000; filter: drop-shadow(0px 0px 1px #fff); }
         
-        .sidebar { width: 300px; height: calc(var(--cell-size) * 8 + 6px); display: flex; flex-direction: column; gap: 15px; box-sizing: border-box; }
-        .avatar-box { width: 100%; height: 180px; border: 2px solid #444; background: #252525; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        /* Cấu trúc Sidebar tương thích thiết bị */
+        .sidebar { 
+            width: 300px; 
+            max-width: 100%;
+            height: calc(var(--cell-size) * 8 + 6px); 
+            display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; 
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar { height: 260px; width: calc(var(--cell-size) * 8 + 6px); }
+            .avatar-box { display: none !important; } /* Ẩn bớt ảnh trên Mobile để tập trung nhìn biên bản */
+        }
+
+        .avatar-box { width: 100%; height: 140px; border: 2px solid #444; background: #252525; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
         .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
 
-        .history-box { flex-grow: 1; background: #252525; border: 2px solid #444; display: flex; flex-direction: column; overflow: hidden; }
-        .sidebar-title { background: #333; padding: 10px; font-weight: bold; text-align: center; border-bottom: 1px solid #444; font-size: 14px;}
-        .history-log { padding: 10px; overflow-y: auto; flex-grow: 1; font-size: 13px; line-height: 1.6; color: #ccc; }
+        .history-box { flex-grow: 1; background: #252525; border: 2px solid #444; display: flex; flex-direction: column; overflow: hidden; border-radius: 4px; }
+        .sidebar-title { background: #333; padding: 8px; font-weight: bold; text-align: center; border-bottom: 1px solid #444; font-size: 13px; letter-spacing: 0.5px;}
+        .history-log { padding: 8px; overflow-y: auto; flex-grow: 1; font-family: monospace; font-size: 13px; line-height: 1.5; color: #ccc; }
         
         .promotion-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); display: flex; justify-content: center; align-items: center; gap: 15px; z-index: 10; display: none;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); display: flex; justify-content: center; align-items: center; gap: 10px; z-index: 10; display: none;
         }
         .promo-choice {
-            font-size: 45px; background: #444; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border: 2px solid #fff;
+            font-size: calc(var(--cell-size) * 0.7); background: #444; width: calc(var(--cell-size) * 1.1); height: calc(var(--cell-size) * 1.1); display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border: 2px solid #fff;
         }
 
         .fatal-error-screen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #111; color: #ff3333; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; font-family: 'Courier New', monospace; font-size: 16px; text-align: center; padding: 40px; box-sizing: border-box; display: none; line-height: 1.6;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #111; color: #ff3333; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; font-family: monospace; font-size: 14px; text-align: center; padding: 20px; box-sizing: border-box; display: none; line-height: 1.6;
         }
 
         .author-credits {
-            position: absolute; bottom: 15px; width: 100%; text-align: center;
-            font-size: 12px; color: #555; letter-spacing: 1px; font-weight: bold;
+            position: absolute; bottom: 12px; width: 100%; text-align: center;
+            font-size: 11px; color: #555; letter-spacing: 1px; font-weight: bold;
             text-transform: uppercase; pointer-events: none;
         }
         
@@ -99,7 +129,7 @@
 <body>
 
     <div id="fatalScreen" class="fatal-error-screen">
-        <h2 style="letter-spacing: 2px;">⚠️ SECURITY EXCEPTION</h2>
+        <h2>⚠️ SECURITY EXCEPTION</h2>
         <div id="fatalMessage" style="font-weight: bold; color: #fff;"></div>
         <div id="fatalDiagnostic" style="margin-top: 15px; color: #ffae00;"></div>
     </div>
@@ -108,12 +138,12 @@
 
     <div class="controls">
         <select id="playerColor">
-            <option value="w">Quân Trắng (Đi trước)</option>
-            <option value="b">Quân Đen (Đi sau)</option>
+            <option value="w">Quân Trắng</option>
+            <option value="b">Quân Đen</option>
         </select>
         <button id="btnNewGame">Ván Mới</button>
-        <button id="btnUndo" style="background: #444;">Quay Lại ↩</button> 
-        <button id="btnHint" style="background: #2a4d69;">Gợi ý nước đi 💡</button> 
+        <button id="btnUndo">Quay Lại ↩</button> 
+        <button id="btnHint" style="background: #2a4d69;">Gợi ý 💡</button> 
     </div>
 
     <div class="main-container">
@@ -149,28 +179,69 @@
         };
 
         const EngineState = {
-            TERMINATED: "TERMINATED", INITIALIZING: "INITIALIZING",
-            IDLE: "IDLE", SEARCHING: "SEARCHING", HINTING: "HINTING"
+            TERMINATED: "TERMINATED",
+            INITIALIZING: "INITIALIZING",
+            IDLE: "IDLE",
+            SEARCHING: "SEARCHING",
+            HINTING: "HINTING"
         };
 
         let currentEngineState = EngineState.TERMINATED;
-        let game = null; let humanColor = 'w';
-        let engineWorker = null; let activeSessionId = null;
-        let currentMultiPVMoves = {}; let currentEngineEvaluation = 0.00;
-        let domCache = {}; let cachedSelectedSquare = null;
-        let cachedLastMoveSquares = []; let cachedLegalHighlightSquares = [];
-        let cachedHintSquares = []; let cachedCheckSquare = null;
+        let game = null; 
+        let humanColor = 'w';
+        let engineWorker = null;
+        let activeSessionId = null;
+        
+        let currentMultiPVMoves = {}; 
+        let currentEngineEvaluation = 0.00; 
+
+        let domCache = {};
+        let cachedSelectedSquare = null;
+        let cachedLastMoveSquares = [];
+        let cachedLegalHighlightSquares = [];
+        let cachedHintSquares = [];
+        let cachedCheckSquare = null;
         let pendingPromotionMove = null;
 
         function transitionTo(nextState) { currentEngineState = nextState; }
 
         const ChessAdapter = {
-            isCheck() { return game?.in_check?.() || game?.isCheck?.() || false; },
-            isCheckmate() { return game?.in_checkmate?.() || game?.isCheckmate?.() || false; },
-            isGameOver() { return game?.game_over?.() || game?.isGameOver?.() || false; },
-            isDraw() { return game?.in_draw?.() || game?.isDraw?.() || false; }
-        };
+    isCheck() { 
+        if (!game) return false;
+        if (typeof game.in_check === "function") return game.in_check();
+        if (typeof game.isCheck === "function") return game.isCheck();
+        return false; 
+    },
+    isCheckmate() { 
+        if (!game) return false;
+        if (typeof game.in_checkmate === "function") return game.in_checkmate();
+        if (typeof game.isCheckmate === "function") return game.isCheckmate();
+        return false; 
+    },
+    isGameOver() { 
+        if (!game) return false;
+        if (typeof game.game_over === "function") return game.game_over();
+        if (typeof game.isGameOver === "function") return game.isGameOver();
+        return false; 
+    },
+    isDraw() { 
+        if (!game) return false;
+        if (typeof game.in_draw === "function") return game.in_draw();
+        if (typeof game.isDraw === "function") return game.isDraw();
+        return false; 
+    }
+};
 
+// ✅ A — THÊM NGAY DƯỚI ĐÂY
+function isPromotionMove(from, to) {
+    const piece = game.get(from);
+    if (!piece || piece.type !== 'p') return false;
+
+    const toRank = Number(to[1]);
+
+    return (piece.color === 'w' && toRank === 8) ||
+           (piece.color === 'b' && toRank === 1);
+}
         function createStaticBoard() {
             domCache = {};
             const boardContainer = document.getElementById('chessBoard');
@@ -196,6 +267,7 @@
 
         function syncBoardStateFull() {
             if (Object.keys(domCache).length !== 64 || !game) return;
+
             for (let rank = 1; rank <= 8; rank++) {
                 for (let file = 0; file < 8; file++) {
                     const square = String.fromCharCode(97 + file) + rank;
@@ -212,10 +284,20 @@
                             pieceDom.textContent = symbol;
                             cell.replaceChildren(pieceDom);
                         }
-                    } else if (cell.firstChild) { cell.replaceChildren(); delete cell.dataset.color; }
+                    } else {
+                        if (cell.firstChild) {
+                            cell.replaceChildren();
+                            delete cell.dataset.color;
+                        }
+                    }
                 }
             }
-            if (cachedCheckSquare) { cachedCheckSquare.classList.remove('in-check'); cachedCheckSquare = null; }
+
+            if (cachedCheckSquare) {
+                cachedCheckSquare.classList.remove('in-check');
+                cachedCheckSquare = null;
+            }
+
             if (ChessAdapter.isCheck()) {
                 const currentTurn = game.turn();
                 for (let rank = 1; rank <= 8; rank++) {
@@ -225,81 +307,178 @@
                         if (p && p.type === 'k' && p.color === currentTurn) {
                             cachedCheckSquare = domCache[sqName];
                             if (cachedCheckSquare) cachedCheckSquare.classList.add('in-check');
+                            break;
                         }
                     }
+                    if (cachedCheckSquare) break;
                 }
             }
         }
 
         function initEngineWorker() {
-            if (engineWorker) { try { engineWorker.terminate(); } catch(e) {} engineWorker = null; }
+            if (engineWorker) {
+                try { engineWorker.terminate(); } catch(e) {}
+                engineWorker = null;
+            }
+            
             transitionTo(EngineState.INITIALIZING);
+            updateStatus();
+            
             try {
                 engineWorker = new Worker("./libs/stockfish.js");
                 activeSessionId = crypto.randomUUID();
                 engineWorker.sessionId = activeSessionId;
-            } catch(e) { return; }
+            } catch(e) {
+                engineWorker = null;
+                transitionTo(EngineState.TERMINATED);
+                document.getElementById('boardHeader').textContent = "CHẾ ĐỘ CHƠI LOCAL";
+                updateStatus();
+                return;
+            }
 
             const localSessionId = activeSessionId;
+
             engineWorker.onmessage = function(e) {
                 if (localSessionId !== activeSessionId || currentEngineState === EngineState.TERMINATED) return;
                 const msg = e.data.trim();
-                if (msg.startsWith("info ") && msg.includes(" multipv ")) parseMultiPVLine(msg);
-                if (msg.includes("uciok")) { transitionTo(EngineState.IDLE); engineWorker.postMessage("setoption name MultiPV value 4"); }
+
+                if (msg.startsWith("info ") && msg.includes(" multipv ")) {
+                    parseMultiPVLine(msg);
+                }
+
+                if (msg === "uciok" || msg.includes("uciok")) {
+                    transitionTo(EngineState.IDLE);
+                    engineWorker.postMessage("setoption name MultiPV value 4");
+                    engineWorker.postMessage("setoption name Skill Level value 20");
+                    updateStatus();
+                    return;
+                }
+
                 if (msg.startsWith("bestmove")) {
                     const defaultBestMove = msg.split(" ")[1];
+                    
                     if (currentEngineState === EngineState.SEARCHING) {
-                        setControlState(false); transitionTo(EngineState.IDLE);
+                        setControlState(false);
+                        transitionTo(EngineState.IDLE);
+                        
                         let chosenMove = executeAdaptiveBrainLogic(defaultBestMove);
-                        if (chosenMove) executeMoveDirect({from: chosenMove.substring(0, 2), to: chosenMove.substring(2, 4), promotion: chosenMove.substring(4, 5) || undefined});
+                        
+                        if (chosenMove) {
+                            executeMoveDirect({
+                                from: chosenMove.substring(0, 2),
+                                to: chosenMove.substring(2, 4),
+                                promotion: chosenMove.substring(4, 5) || undefined
+                            });
+                        }
                     } else if (currentEngineState === EngineState.HINTING) {
-                        setControlState(false); transitionTo(EngineState.IDLE);
-                        if (defaultBestMove && defaultBestMove !== "(none)") showHintOnBoard(defaultBestMove.substring(0, 2), defaultBestMove.substring(2, 4));
+                        setControlState(false);
+                        transitionTo(EngineState.IDLE);
+                        if (defaultBestMove && defaultBestMove !== "(none)") {
+                            showHintOnBoard(defaultBestMove.substring(0, 2), defaultBestMove.substring(2, 4));
+                        }
+                        updateStatus();
                     }
                 }
             };
+
             engineWorker.postMessage("uci");
         }
 
         function parseMultiPVLine(line) {
-            const pvMatch = line.match(/multiv (\d+)/); const moveMatch = line.match(/ pv ([a-h][1-8][a-h][1-8][qrbn]?)/);
+            const pvMatch = line.match(/multiv (\d+)/);
+            const moveMatch = line.match(/ pv ([a-h][1-8][a-h][1-8][qrbn]?)/);
             if (!pvMatch || !moveMatch) return;
-            const pvId = parseInt(pvMatch[1]); const moveStr = moveMatch[1];
+
+            const pvId = parseInt(pvMatch[1]); 
+            const moveStr = moveMatch[1];
+            
             let score = 0;
-            if (line.includes("score cp ")) score = parseInt(line.match(/score cp (-?\d+)/)[1]) / 100;
+            if (line.includes("score cp ")) {
+                const cpMatch = line.match(/score cp (-?\d+)/);
+                if (cpMatch) score = parseInt(cpMatch[1]) / 100;
+            } else if (line.includes("score mate ")) {
+                const mateMatch = line.match(/score mate (-?\d+)/);
+                if (mateMatch) score = parseInt(mateMatch[1]) > 0 ? 50 : -50; 
+            }
+
             const aiColor = humanColor === 'w' ? 'b' : 'w';
-            if (aiColor === 'b') score = -score;
+            if (aiColor === 'b') { score = -score; }
+
             currentMultiPVMoves[pvId] = { move: moveStr, score: score };
-            if (pvId === 1) currentEngineEvaluation = score;
+
+            if (pvId === 1) { currentEngineEvaluation = score; }
         }
 
         function executeAdaptiveBrainLogic(defaultBestMove) {
-            const branches = [currentMultiPVMoves[1], currentMultiPVMoves[2], currentMultiPVMoves[3]].filter(Boolean);
+            const branches = [];
+            if (currentMultiPVMoves[1]) branches.push(currentMultiPVMoves[1]);
+            if (currentMultiPVMoves[2]) branches.push(currentMultiPVMoves[2]);
+            if (currentMultiPVMoves[3]) branches.push(currentMultiPVMoves[3]);
+            if (currentMultiPVMoves[4]) branches.push(currentMultiPVMoves[4]);
+
             if (branches.length === 0) return defaultBestMove;
+
+            const geniusMove = branches[0].move || defaultBestMove; 
+            const currentEval = currentEngineEvaluation;
+
             const fen = game.fen().split(' ')[0];
-            if ((fen.match(/[a-zA-Z]/g) || []).length <= 12 || currentEngineEvaluation <= 0.4) return branches[0].move;
-            return branches.find(b => b.score > -1.2)?.move || branches[0].move;
+            const totalPieces = (fen.match(/[a-zA-Z]/g) || []).length;
+
+            if (totalPieces <= 12 || currentEval <= 0.4) { return geniusMove; }
+
+            if (currentEval > 0.4) {
+                if (branches.length >= 3 && branches[2] && branches[2].move) {
+                    if (branches[2].score > -1.2) return branches[2].move;
+                }
+                if (branches.length >= 2 && branches[1] && branches[1].move) {
+                    if (branches[1].score > -1.2) return branches[1].move;
+                }
+            }
+            return geniusMove;
         }
 
         function initGame() {
-            currentMultiPVMoves = {}; currentEngineEvaluation = 0.00; cachedSelectedSquare = null;
-            pendingPromotionMove = null; document.getElementById('promotionOverlay').style.display = 'none';
+            currentMultiPVMoves = {}; 
+            currentEngineEvaluation = 0.00;
+            cachedSelectedSquare = null;
+            pendingPromotionMove = null;
+            clearHintHighlightsDirect();
+            
+            document.getElementById('promotionOverlay').style.display = 'none';
             document.getElementById('historyLog').replaceChildren();
+            
             if (game) game.reset();
-            setControlState(false); clearAllHighlightsDirect(); createStaticBoard(); syncBoardStateFull();
-            if (!engineWorker) initEngineWorker(); else engineWorker.postMessage('ucinewgame');
+            
+            setControlState(false);
+            clearAllHighlightsDirect();
+            createStaticBoard();
+            syncBoardStateFull();
+            
+            if (!engineWorker && currentEngineState !== EngineState.INITIALIZING) {
+                initEngineWorker();
+            } else if (engineWorker) {
+                engineWorker.postMessage('ucinewgame');
+            }
+            
             updateStatus();
+            if (game && game.turn() !== humanColor && engineWorker) {
+                triggerEngineCalculation();
+            }
         }
 
         function setControlState(isBusy) {
             const boardEl = document.getElementById('chessBoard');
-            if (isBusy) boardEl.classList.add('engine-busy'); else boardEl.classList.remove('engine-busy');
+            if (isBusy && engineWorker) boardEl.classList.add('engine-busy');
+            else boardEl.classList.remove('engine-busy');
         }
 
         function handleSquareClick(square) {
             if (!game) return;
-            const piece = game.get(square); clearHintHighlightsDirect();
-            if (cachedSelectedSquare) { domCache[cachedSelectedSquare]?.classList.remove('selected'); clearLegalHighlightsDirect(); }
+            const piece = game.get(square);
+            clearHintHighlightsDirect();
+
+            if (cachedSelectedSquare) { domCache[cachedSelectedSquare]?.classList.remove('selected'); }
+            clearLegalHighlightsDirect();
 
             const activeTurnColor = game.turn();
             const allowedToMove = engineWorker ? (activeTurnColor === humanColor) : true;
@@ -311,37 +490,67 @@
                     showLegalMovesDirect(square);
                 }
             } else {
-                if (cachedSelectedSquare === square) cachedSelectedSquare = null;
-                else {
-                    const moves = game.moves({ verbose: true });
-                    const isPromotion = moves.some(m => m.from === cachedSelectedSquare && m.to === square && m.flags.includes('p'));
-                    if (isPromotion) {
-                        pendingPromotionMove = { from: cachedSelectedSquare, to: square };
-                        showPromotionUI();
-                        cachedSelectedSquare = null; return;
+                if (cachedSelectedSquare === square) {
+                    cachedSelectedSquare = null;
+                } else {
+                    try {
+                        const moves = game.moves({ verbose: true });
+                      const isPromotion = isPromotionMove(cachedSelectedSquare, square);
+                        
+                        if (isPromotion) {
+                            pendingPromotionMove = { from: cachedSelectedSquare, to: square };
+                            showPromotionUI();
+                            cachedSelectedSquare = null;
+                            return;
+                        }
+
+                       console.log("abcd move:", cachedSelectedSquare, "->", square);
+const move = game.move({ from: cachedSelectedSquare, to: square });
+                        if (move) {
+                            cachedSelectedSquare = null;
+                            updateHistoryPanel(move.san);
+                            clearLastMoveHighlightsDirect();
+                            
+                            domCache[move.from]?.classList.add('last-move');
+                            domCache[move.to]?.classList.add('last-move');
+                            cachedLastMoveSquares.push(domCache[move.from], domCache[move.to]);
+                            
+                            syncBoardStateFull();
+                            updateStatus();
+                            
+                            if (engineWorker) triggerEngineCalculation();
+                            return;
+                        }
+                    } catch(e) {}
+
+                    if (piece && piece.color === activeTurnColor && allowedToMove) {
+                        cachedSelectedSquare = square;
+                        domCache[square].classList.add('selected');
+                        showLegalMovesDirect(square);
+                    } else {
+                        cachedSelectedSquare = null;
                     }
-                    const move = game.move({ from: cachedSelectedSquare, to: square });
-                    if (move) {
-                        cachedSelectedSquare = null; updateHistoryPanel(move.san); syncBoardStateFull(); updateStatus();
-                        if (engineWorker) triggerEngineCalculation();
-                    } else if (piece && piece.color === activeTurnColor) {
-                        cachedSelectedSquare = square; domCache[square].classList.add('selected'); showLegalMovesDirect(square);
-                    } else cachedSelectedSquare = null;
                 }
             }
         }
 
         function showLegalMovesDirect(square) {
-            game.moves({ square: square, verbose: true }).forEach(m => {
+            if (!game) return;
+            const moves = game.moves({ square: square, verbose: true });
+            moves.forEach(m => {
                 const cell = domCache[m.to];
-                if (cell) { cell.classList.add('legal-target'); cachedLegalHighlightSquares.push(cell); }
+                if (cell) {
+                    cell.classList.add('legal-target');
+                    cachedLegalHighlightSquares.push(cell);
+                }
             });
         }
 
         function showPromotionUI() {
             const overlay = document.getElementById('promotionOverlay');
             overlay.replaceChildren();
-            setControlState(true);
+            setControlState(true); 
+            
             const pieces = game.turn() === 'w' ? ['Q', 'R', 'B', 'N'] : ['q', 'r', 'b', 'n'];
             pieces.forEach(p => {
                 const btn = document.createElement('div');
@@ -349,13 +558,19 @@
                 btn.textContent = UNICODE_PIECES[p];
                 btn.addEventListener("click", () => {
                     overlay.style.display = 'none';
-                    const move = game.move({ from: pendingPromotionMove.from, to: pendingPromotionMove.to, promotion: p.toLowerCase() });
-                    if (move) {
-                        updateHistoryPanel(move.san);
-                        syncBoardStateFull(); updateStatus();
-                        pendingPromotionMove = null; setControlState(false);
-                        if (engineWorker) triggerEngineCalculation();
-                    }
+            const move = game.move({
+    from: pendingPromotionMove.from,
+    to: pendingPromotionMove.to,
+    promotion: p.toLowerCase()
+});
+
+if (!move) return;
+
+syncBoardStateFull();
+updateHistoryPanel(game.history().slice(-1)[0]);
+updateStatus();
+                    pendingPromotionMove = null; 
+                    if (engineWorker) triggerEngineCalculation();
                 });
                 overlay.appendChild(btn);
             });
@@ -363,73 +578,138 @@
         }
 
         function triggerEngineCalculation() {
-            if (!engineWorker || !game || ChessAdapter.isGameOver()) { setControlState(false); return; }
-            transitionTo(EngineState.SEARCHING); setControlState(true);
+            if (!engineWorker || !game || ChessAdapter.isGameOver()) {
+                setControlState(false);
+                return;
+            }
+            currentMultiPVMoves = {}; 
+            transitionTo(EngineState.SEARCHING);
+            setControlState(true);
+            updateStatus();
             engineWorker.postMessage(`position fen ${game.fen()}`);
             engineWorker.postMessage("go movetime 1000"); 
         }
 
         function triggerEngineHint() {
             if (!engineWorker || currentEngineState !== EngineState.IDLE || !game || ChessAdapter.isGameOver()) return;
-            clearHintHighlightsDirect(); transitionTo(EngineState.HINTING); setControlState(true);
+            if (game.turn() !== humanColor) return;
+
+            clearHintHighlightsDirect();
+            transitionTo(EngineState.HINTING);
+            setControlState(true);
+            updateStatus();
             engineWorker.postMessage(`position fen ${game.fen()}`);
-            engineWorker.postMessage("go movetime 1000");
+            engineWorker.postMessage("go movetime 1000"); 
         }
 
-        function showHintOnBoard(from, to) {
-            domCache[from]?.classList.add('hint-move'); domCache[to]?.classList.add('hint-move');
-            cachedHintSquares.push(domCache[from], domCache[to]);
+        function showHintOnBoard(fromSquare, toSquare) {
+            const fromCell = domCache[fromSquare];
+            const toCell = domCache[toSquare];
+            if (fromCell && toCell) {
+                fromCell.classList.add('hint-move');
+                toCell.classList.add('hint-move');
+                cachedHintSquares.push(fromCell, toCell);
+            }
         }
 
         function executeMoveDirect(moveObj) {
-            const move = game.move(moveObj);
-            if (move) { updateHistoryPanel(move.san); syncBoardStateFull(); updateStatus(); }
+            if (!game) return;
+            try {
+                const move = game.move(moveObj);
+                if (move) {
+                    updateHistoryPanel(move.san);
+                    clearLastMoveHighlightsDirect();
+                    domCache[move.from]?.classList.add('last-move');
+                    domCache[move.to]?.classList.add('last-move');
+                    cachedLastMoveSquares.push(domCache[move.from], domCache[move.to]);
+                    syncBoardStateFull();
+                    updateStatus();
+                }
+            } catch(e) { console.error(e); }
         }
 
-        function clearAllHighlightsDirect() {
-            document.querySelectorAll('.cell').forEach(c => c.classList.remove('last-move', 'legal-target', 'hint-move'));
-            cachedLastMoveSquares = []; cachedLegalHighlightSquares = []; cachedHintSquares = [];
-        }
-
+        function clearLastMoveHighlightsDirect() { cachedLastMoveSquares.forEach(c => c?.classList.remove('last-move')); cachedLastMoveSquares = []; }
+        function clearLegalHighlightsDirect() { cachedLegalHighlightSquares.forEach(c => c?.classList.remove('legal-target')); cachedLegalHighlightSquares = []; }
         function clearHintHighlightsDirect() { cachedHintSquares.forEach(c => c?.classList.remove('hint-move')); cachedHintSquares = []; }
+        function clearAllHighlightsDirect() { clearLastMoveHighlightsDirect(); clearLegalHighlightsDirect(); clearHintHighlightsDirect(); }
 
         function updateHistoryPanel(sanMove) {
-            const log = document.getElementById('historyLog');
-            if (game.turn() === 'b') {
+            const logContainer = document.getElementById('historyLog');
+            const activeColor = game.turn();
+            
+            if (activeColor === 'b') {
+                const movesCount = Math.floor(game.history().length / 2) + 1;
                 const row = document.createElement('div');
-                row.id = `move-row-${Math.floor(game.history().length / 2) + 1}`;
-                row.innerHTML = `<span style="color:#888">${Math.floor(game.history().length / 2) + 1}.</span> <strong>${sanMove}</strong>`;
-                log.appendChild(row);
+                row.id = `move-row-${movesCount}`;
+                row.style.padding = "3px 0";
+                row.style.borderBottom = "1px solid #333";
+                row.innerHTML = `<span style="color:#888">${movesCount}.</span> <span style="display:inline-block; width:70px; font-weight:bold;">${sanMove}</span>`;
+                logContainer.appendChild(row);
             } else {
-                const row = document.getElementById(`move-row-${Math.floor(game.history().length / 2)}`);
-                if (row) row.innerHTML += ` <span style="color:#ffae00;">${sanMove}</span>`;
+                const movesCount = Math.floor(game.history().length / 2);
+                const currentRow = document.getElementById(`move-row-${movesCount}`);
+                if (currentRow) { currentRow.innerHTML += `<span style="font-weight:bold; color:#ffae00;">${sanMove}</span>`; }
             }
-            log.scrollTop = log.scrollHeight;
+            logContainer.scrollTop = logContainer.scrollHeight; 
         }
 
         function updateStatus() {
             const header = document.getElementById('boardHeader');
-            if (ChessAdapter.isGameOver()) header.textContent = "KẾT THÚC VÁN ĐẤU!";
-            else header.textContent = game.turn() === 'w' ? "LƯỢT QUÂN TRẮNG" : "LƯỢT QUÂN ĐEN";
+            
+            if (ChessAdapter.isGameOver()) {
+                if (ChessAdapter.isCheckmate()) { header.textContent = "KẾT THÚC: GM LÊ QUANG LIÊM THẮNG!"; } 
+                else if (ChessAdapter.isDraw()) { header.textContent = "KẾT THÚC: HÒA CỜ!"; }
+                setControlState(false);
+                return;
+            }
+            if (currentEngineState === EngineState.INITIALIZING) { header.textContent = "HỆ THỐNG ĐANG KHỞI TẠO..."; } 
+            else { header.textContent = game && game.turn() === 'w' ? "LƯỢT QUÂN TRẮNG" : "LƯỢT QUÂN ĐEN"; }
         }
 
         function bootstrap() {
             if (window.location.protocol === "file:") {
-                document.getElementById("fatalScreen").style.display = "flex";
+                const screen = document.getElementById("fatalScreen");
                 document.getElementById("fatalMessage").textContent = "LOCAL ENVIRONMENT BLOCKED";
+                document.getElementById("fatalDiagnostic").innerHTML = "Please launch using VS Code <strong>Live Server</strong> extension to allow Worker threads.";
+                screen.style.display = "flex";
                 return;
             }
-            document.getElementById('playerColor').onchange = (e) => { humanColor = e.target.value; initGame(); };
-            document.getElementById('btnNewGame').onclick = initGame;
-            document.getElementById('btnHint').onclick = triggerEngineHint;
-            document.getElementById('chessBoard').onclick = (e) => {
+
+            document.getElementById('playerColor').addEventListener('change', function() { humanColor = this.value; initGame(); });
+            document.getElementById('btnNewGame').addEventListener('click', initGame);
+            
+            document.getElementById('btnUndo').addEventListener('click', function() {
+                if (!game || ChessAdapter.isGameOver()) return;
+                if (currentEngineState === EngineState.SEARCHING || currentEngineState === EngineState.HINTING) return;
+
+                clearAllHighlightsDirect();
+                if (engineWorker && game.history().length >= 2) {
+                    game.undo(); game.undo();
+                    const logContainer = document.getElementById('historyLog');
+                    logContainer.replaceChildren();
+                    const fullHistory = game.history();
+                    game.reset();
+                    fullHistory.forEach(m => { game.move(m); updateHistoryPanel(m); });
+                    syncBoardStateFull(); updateStatus();
+                }
+            });
+
+            document.getElementById('btnHint').addEventListener('click', function() {
+                if (game && game.turn() !== humanColor) return;
+                triggerEngineHint();
+            });
+
+            document.getElementById('chessBoard').onclick = function(e) {
+                if (currentEngineState === EngineState.SEARCHING || currentEngineState === EngineState.HINTING) return;
                 const cell = e.target.closest('.cell');
-                if (cell) handleSquareClick(cell.dataset.square);
+                if (cell && game && !ChessAdapter.isGameOver()) { handleSquareClick(cell.dataset.square); }
             };
+
             game = new Chess();
             initGame();
         }
-        window.onload = bootstrap;
+
+        window.addEventListener("load", bootstrap);
     </script>
 </body>
 </html>
